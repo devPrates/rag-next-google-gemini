@@ -5,11 +5,12 @@ export type RetrievedChunk = { id: string; content: string; metadata: Record<str
 
 export async function hybridSearch(queryText: string, topK: number): Promise<RetrievedChunk[]> {
   const apiKey = process.env.GOOGLE_API_KEY as string;
-  const embModel = process.env.EMBEDDING_MODEL || "text-embedding-004";
-  const qEmb = (await embedTexts([queryText], apiKey, embModel))[0];
+  const embModel = process.env.EMBEDDING_MODEL || "gemini-embedding-001";
+  const dim = parseInt(process.env.EMBEDDING_DIM || "768", 10);
+  const qEmb = (await embedTexts([queryText], apiKey, embModel, { taskType: "QUESTION_ANSWERING", outputDimensionality: dim }))[0];
   const schema = process.env.SUPABASE_DB_SCHEMA || "public";
-  const semW = 0.7;
-  const kwW = 0.3;
+  const semW = 0.85;
+  const kwW = 0.15;
   const client = await getPool().connect();
   try {
     const sql = `

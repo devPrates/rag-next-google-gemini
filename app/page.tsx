@@ -10,6 +10,7 @@ import { ChatInterface } from "@/components/chat-interface";
 export default function Home() {
   const [pdfContent, setPdfContent] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
+  const [isReady, setIsReady] = useState<boolean>(false);
 
   return (
     <main className="min-h-screen bg-background">
@@ -22,7 +23,7 @@ export default function Home() {
                 <Sparkles className="h-4 w-4 text-accent absolute -top-1 -right-1" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-balance">RAG Document Assistant</h1>
+                <h1 className="text-2xl font-bold text-balance">RAG(Retrieval-Augmented Generation)</h1>
                 <p className="text-sm text-muted-foreground">Pergunte qualquer coisa sobre seus PDFs</p>
               </div>
             </div>
@@ -32,16 +33,21 @@ export default function Home() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="grid gap-8 md:grid-cols-2 mt-8">
-          <PdfUpload
-            onPdfProcessed={(content, name) => {
-              setPdfContent(content);
-              setFileName(name);
-            }}
-            fileName={fileName}
-          />
+        <div className="grid gap-8 md:grid-cols-3 mt-8">
+          <div className="md:col-span-1">
+            <PdfUpload
+              onPdfProcessed={(content, name) => {
+                setPdfContent("")
+                setFileName(name)
+                setIsReady(Boolean(name))
+              }}
+              fileName={fileName}
+            />
+          </div>
 
-          <ChatInterface pdfContent={pdfContent} fileName={fileName} />
+          <div className="md:col-span-2">
+            <ChatInterface pdfContent={pdfContent} fileName={fileName} isReady={isReady} />
+          </div>
         </div>
       </div>
     </main>

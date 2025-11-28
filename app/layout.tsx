@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RAG Document Assistant",
+  title: "RAG Document ",
   description: "Upload PDFs and ask questions about their content using AI",
 };
 

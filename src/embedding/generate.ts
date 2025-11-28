@@ -1,27 +1,26 @@
-type EmbeddingResponse = { embedding: number[] };
+import { embedMany } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-async function embedContent(apiKey: string, model: string, text: string): Promise<EmbeddingResponse> {
-  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:embedContent`;
-  const body = {
-    model,
-    content: { parts: [{ text }] },
-  };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`embedContent failed ${res.status}`);
-  const json = await res.json();
-  const values: number[] = json?.embedding?.value || json?.embedding?.values || json?.embeddings?.[0]?.values || [];
-  return { embedding: values };
-}
+type EmbedOptions = {
+  taskType?: string;
+  outputDimensionality?: number;
+};
 
-export async function embedTexts(texts: string[], apiKey: string, model: string): Promise<number[][]> {
-  const out: number[][] = [];
-  for (const t of texts) {
-    const r = await embedContent(apiKey, model, t);
-    out.push(r.embedding);
+export async function embedTexts(texts: string[], apiKey: string, model: string, options?: EmbedOptions): Promise<number[][]> {
+  const google = createGoogleGenerativeAI({ apiKey });
+  const googleOpts: Record<string, number | string> = {};
+  if (typeof options?.outputDimensionality === "number") {
+    googleOpts.outputDimensionality = options.outputDimensionality;
   }
-  return out;
+  if (typeof options?.taskType === "string") {
+    googleOpts.taskType = options.taskType;
+  }
+  const { embeddings } = await embedMany({
+    model: google.textEmbedding(model),
+    values: texts,
+    providerOptions: {
+      google: googleOpts,
+    },
+  });
+  return embeddings;
 }

@@ -18,30 +18,37 @@ interface Message {
 interface ChatInterfaceProps {
   pdfContent: string
   fileName: string
+  isReady?: boolean
 }
 
-export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
+export function ChatInterface(props: ChatInterfaceProps) {
+  const { fileName, isReady } = props
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+
+  const log = (line: string) => {
+    try {
+      const payload = `[query] ${line}`
+      window.dispatchEvent(new CustomEvent<string>("app-log", { detail: payload }))
+    } catch {}
+  }
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+    endRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   useEffect(() => {
-    if (pdfContent) {
+    if (fileName) {
       setMessages([])
     }
-  }, [pdfContent])
+  }, [fileName])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!input.trim() || !pdfContent) return
+    if (!input.trim() || !fileName) return
 
     const userMessage: Message = { role: "user", content: input }
     setMessages((prev) => [...prev, userMessage])
@@ -49,14 +56,11 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/chat", {
+      log(`pergunta enviada: '${input.trim()}'`)
+      const response = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: input,
-          pdfContent,
-          conversationHistory: messages,
-        }),
+        body: JSON.stringify({ question: input }),
       })
 
       if (!response.ok) {
@@ -70,6 +74,21 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
       }
       setMessages((prev) => [...prev, assistantMessage])
       toast.success("Resposta gerada")
+      const cits: Array<{ id: string; score: number }> = Array.isArray(data?.citations)
+        ? data.citations.map((c: { id: string; score: number }) => ({ id: c.id, score: c.score }))
+        : []
+      if (cits.length) {
+        const top = cits.slice(0, 3)
+        log(`trechos recuperados: ${cits.length}; top scores: ${top.map((t) => t.score.toFixed(3)).join(", ")}`)
+        log(`ids citados (amostra): ${top.map((t) => t.id).join(", ")}`)
+      } else {
+        log("nenhuma citação retornada pela API")
+      }
+      if (typeof data.answer === "string" && data.answer.trim().toLowerCase() === "não encontrei essa informação") {
+        log("resposta retornou fallback por ausência de correspondência direta nos trechos")
+      } else {
+        log("resposta gerada com base nos trechos recuperados")
+      }
     } catch (error) {
       console.error("Erro:", error)
       const errorMessage: Message = {
@@ -78,13 +97,14 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
       }
       setMessages((prev) => [...prev, errorMessage])
       toast.error("Falha ao obter resposta")
+      log("falha ao obter resposta da API de consulta")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Card className="flex flex-col h-[600px]">
+    <Card className="flex flex-col h-[80vh]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
@@ -95,8 +115,8 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 px-6" ref={scrollRef}>
-          {!pdfContent ? (
+        <ScrollArea className="flex-1 px-6">
+          {!isReady ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />
               <p className="text-sm text-muted-foreground">Faça upload de um PDF para começar a conversar</p>
@@ -127,20 +147,21 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
                   </div>
                 </div>
               )}
+              <div ref={endRef} />
             </div>
           )}
         </ScrollArea>
 
-        <form onSubmit={handleSubmit} className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="p-4 border-t bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={pdfContent ? "Faça uma pergunta..." : "Aguardando documento..."}
-              disabled={!pdfContent || isLoading}
+              placeholder={isReady ? "Faça uma pergunta..." : "Aguardando documento..."}
+              disabled={!isReady || isLoading}
               className="flex-1"
             />
-            <Button type="submit" disabled={!pdfContent || isLoading || !input.trim()} size="icon">
+            <Button type="submit" disabled={!isReady || isLoading || !input.trim()} size="icon">
               <Send className="h-4 w-4" />
             </Button>
           </div>

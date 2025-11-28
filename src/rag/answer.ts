@@ -1,21 +1,58 @@
 type ChunkInput = { id: string; content: string };
 
+function truncate(input: string, maxChars: number): string {
+  if (input.length <= maxChars) return input;
+  return input.slice(0, maxChars);
+}
+
 function buildPrompt(question: string, chunks: ChunkInput[]): string {
-  const header = "Você é um assistente especializado em responder baseado APENAS no contexto abaixo. Se não souber, diga 'não encontrei essa informação'.";
-  const ctx = chunks.map((c, i) => `Contexto ${i + 1} (id ${c.id}):\n${c.content}`).join("\n\n");
-  const q = `Pergunta: ${question}`;
+  const header = [
+    "Responda em português brasileiro com base APENAS nos trechos abaixo.",
+    "Forneça uma resposta curta porém completa (até 4 frases).",
+    "Não mencione ids, rótulos ou as palavras 'Contexto'/'chunk' na resposta.",
+    "Se não houver resposta direta, resuma o que os trechos relacionados indicam sem inventar.",
+  ].join(" ");
+  const maxCtx = parseInt(process.env.MAX_CONTEXT_CHARS || "6000", 10);
+  const perChunk = Math.floor(maxCtx / Math.max(chunks.length, 1));
+  const ctx = chunks
+    .map((c, i) => `Trecho ${i + 1}:\n${truncate(c.content, perChunk)}`)
+    .join("\n\n---\n\n");
+  const q = `Pergunta: ${question}\nResposta:`;
   return [header, ctx, q].join("\n\n");
+}
+
+function cleanAnswer(text: string): string {
+  const lines = text.split("\n").map((l) => l.trim());
+  const filtered = lines.filter((l) => {
+    const hasId = /\(id\s+[0-9a-f\-]+\)/i.test(l);
+    const startsContext = /^\s*(no\s*)?contexto\b/i.test(l);
+    return !hasId && !startsContext;
+  });
+  const out = filtered.join("\n").trim();
+  return out.length > 0 ? out : text.trim();
 }
 
 export async function generateAnswer(question: string, chunks: ChunkInput[]): Promise<string> {
   const apiKey = process.env.GOOGLE_API_KEY as string;
-  const model = process.env.GENERATION_MODEL || "gemini-1.5-flash-latest";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const modelId = process.env.GENERATION_MODEL || "gemini-2.0-flash";
   const prompt = buildPrompt(question, chunks);
-  const body = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`generateContent failed ${res.status}`);
-  const json = await res.json();
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  return text;
+  const maxOut = parseInt(process.env.MAX_OUTPUT_TOKENS || "512", 10);
+
+  const { generateText } = await import("ai");
+  const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+  const google = createGoogleGenerativeAI({ apiKey });
+  const tryModels = [modelId, "gemini-2.5-flash", "gemini-1.5-flash"];
+  let lastErr: unknown;
+  for (const m of tryModels) {
+    try {
+      const result = await generateText({ model: google(m), prompt, maxOutputTokens: maxOut, temperature: 0.3 });
+      const text = cleanAnswer((result.text || "").trim());
+      if (text.length > 0) return text;
+      lastErr = new Error("modelo retornou resposta vazia");
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  const fallback = "não encontrei essa informação";
+  return fallback;
 }
