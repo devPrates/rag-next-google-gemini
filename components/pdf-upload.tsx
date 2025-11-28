@@ -6,6 +6,7 @@ import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, FileText, Loader2, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface PdfUploadProps {
   onPdfProcessed: (content: string, fileName: string) => void
@@ -19,7 +20,7 @@ export function PdfUpload({ onPdfProcessed, fileName }: PdfUploadProps) {
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
-      alert("Por favor, envie apenas arquivos PDF")
+      toast.error("Apenas arquivos PDF são suportados")
       return
     }
 
@@ -41,10 +42,11 @@ export function PdfUpload({ onPdfProcessed, fileName }: PdfUploadProps) {
 
       const data = await response.json()
       onPdfProcessed(data.text, file.name)
+      toast.success("PDF processado com sucesso")
       setIsProcessed(true)
     } catch (error) {
       console.error("Erro:", error)
-      alert("Erro ao processar o PDF. Tente novamente.")
+      toast.error("Erro ao processar o PDF")
     } finally {
       setIsLoading(false)
     }

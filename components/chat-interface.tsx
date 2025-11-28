@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { MessageCircle, Send, Loader2, FileQuestion } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 
 interface Message {
   role: "user" | "assistant"
@@ -68,6 +69,7 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
         content: data.answer,
       }
       setMessages((prev) => [...prev, assistantMessage])
+      toast.success("Resposta gerada")
     } catch (error) {
       console.error("Erro:", error)
       const errorMessage: Message = {
@@ -75,6 +77,7 @@ export function ChatInterface({ pdfContent, fileName }: ChatInterfaceProps) {
         content: "Desculpe, ocorreu um erro ao processar sua pergunta.",
       }
       setMessages((prev) => [...prev, errorMessage])
+      toast.error("Falha ao obter resposta")
     } finally {
       setIsLoading(false)
     }
