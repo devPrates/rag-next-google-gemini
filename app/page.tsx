@@ -2,99 +2,48 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import { FileText, Sparkles } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { PdfUpload } from "@/components/pdf-upload";
+import { ChatInterface } from "@/components/chat-interface";
 
 export default function Home() {
-  const [uploading, setUploading] = useState(false);
-  const [chunks, setChunks] = useState<number | null>(null);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [error, setError] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
-
-  async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setChunks(null);
-    setUploading(true);
-    const formData = new FormData(e.currentTarget);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    setUploading(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(String(j?.error || "falha no upload"));
-      return;
-    }
-    const json = await res.json();
-    setChunks(json.chunks);
-  }
-
-  async function handleQuery(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setAnswer("");
-    const q = question.trim();
-    if (!q) return;
-    setMessages(m => [...m, { role: "user", content: q }]);
-    const res = await fetch("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(String(j?.error || "falha na consulta"));
-      return;
-    }
-    const json = await res.json();
-    setAnswer(json.answer);
-    setMessages(m => [...m, { role: "assistant", content: String(json.answer || "") }]);
-  }
+  const [pdfContent, setPdfContent] = useState<string>("");
+  const [fileName, setFileName] = useState<string>("");
 
   return (
-    <div className="mx-auto max-w-3xl p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG com Supabase + Google AI</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleUpload} className="flex items-center gap-3">
-            <Input type="file" name="file" accept="application/pdf" required />
-            <Button type="submit" disabled={uploading}>{uploading ? "Enviando..." : "Enviar"}</Button>
-          </form>
-          {chunks !== null && <div className="text-sm text-muted-foreground">Chunks inseridos: {chunks}</div>}
-          {error && <div className="text-sm text-red-600">{error}</div>}
-        </CardContent>
-      </Card>
-
-      <Card className="h-[60vh] flex flex-col">
-        <CardHeader>
-          <CardTitle>Chat</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 grid grid-rows-[1fr_auto] gap-3">
-          <ScrollArea className="rounded-md border p-4">
-            <div className="space-y-4">
-              {messages.map((m, i) => (
-                <div key={i} className={`flex items-start gap-3 ${m.role === "assistant" ? "" : "flex-row-reverse"}`}>
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>{m.role === "assistant" ? "AI" : "U"}</AvatarFallback>
-                  </Avatar>
-                  <div className={`max-w-[80%] rounded-md px-3 py-2 ${m.role === "assistant" ? "bg-muted" : "bg-primary text-primary-foreground"}`}>
-                    {m.content}
-                  </div>
-                </div>
-              ))}
+    <main className="min-h-screen bg-background">
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 max-w-6xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <FileText className="h-8 w-8 text-accent" />
+                <Sparkles className="h-4 w-4 text-accent absolute -top-1 -right-1" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-balance">RAG Document Assistant</h1>
+                <p className="text-sm text-muted-foreground">Pergunte qualquer coisa sobre seus PDFs</p>
+              </div>
             </div>
-          </ScrollArea>
-          <Separator />
-          <form onSubmit={handleQuery} className="grid grid-cols-[1fr_auto] gap-3">
-            <Textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Digite sua pergunta" className="min-h-12" />
-            <Button type="submit">Enviar</Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid gap-8 md:grid-cols-2 mt-8">
+          <PdfUpload
+            onPdfProcessed={(content, name) => {
+              setPdfContent(content);
+              setFileName(name);
+            }}
+            fileName={fileName}
+          />
+
+          <ChatInterface pdfContent={pdfContent} fileName={fileName} />
+        </div>
+      </div>
+    </main>
   );
 }
