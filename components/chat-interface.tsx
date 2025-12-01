@@ -104,7 +104,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
   }
 
   return (
-    <Card className="flex flex-col h-[80vh]">
+    <Card className="grid grid-rows-[auto_1fr_auto] h-[70vh] md:h-[80vh]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
@@ -114,8 +114,8 @@ export function ChatInterface(props: ChatInterfaceProps) {
           {fileName ? `Fazendo perguntas sobre: ${fileName}` : "Aguardando upload de documento"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 px-6">
+      <CardContent className="p-0 min-h-0">
+        <ScrollArea className="h-full px-6">
           {!isReady ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />
@@ -151,8 +151,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
             </div>
           )}
         </ScrollArea>
-
-        <form onSubmit={handleSubmit} className="p-4 border-t bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <form onSubmit={handleSubmit} className="p-4 border-t bg-card/70 backdrop-blur supports-backdrop-filter:bg-card/60">
           <div className="flex gap-2">
             <Input
               value={input}
